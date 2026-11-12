@@ -1,8 +1,7 @@
 # CS207 2026 Fall Project — 基于 EGO1 的数字华容道
 
 3x3 数字华容道数字游戏机，面向 EGO1（XC7A35T-1CSG324C）开发板。
-本目录是 Vivado 工程 `proj.xpr` 的源码部分，已实现课程 PDF 的全部基础功能，
-并额外提供 VGA 二维棋盘作为高级外设输出。
+本目录是 Vivado 工程 `proj.xpr` 的源码部分，已实现课程 PDF 的全部基础功能。
 
 ## 1. 已实现功能与评分项对照
 
@@ -14,7 +13,7 @@
 | 通关判定、十进制步数展示 | 10 | 棋盘等于 `123456780` 判定；通关后 S0 在数码管显示有效/无效步数十进制 |
 | 撤回 | 5 | S4 撤回，深度 16，棋盘与计数同步恢复（含无效步） |
 | 演示模式 | 10 | S2 进入，S3 单步；硬编码 `123456708 -> 非法移动 1 -> 合法移动 8 -> 通关 -> 统计 -> 复位` |
-| 高级外设（可选） | — | VGA 640x480 二维棋盘，K6 指示灯常亮表示高级外设使用中 |
+| 高级外设（可选） | — | 蓝牙 BLE UART 二维棋盘，9600 8N1，K6 点亮表示使用中 |
 
 ## 2. 操作说明
 
@@ -50,7 +49,7 @@ SW0 SW1 SW2 SW3   输入值
 |---|---|---|
 | D0-D7 | F6,G4,G3,J4,H4,J3,J2,K2 | 提示页：对应 1-8 号棋子是否可移动；统计页：左 4 位有效步数，右 4 位无效步数（二进制） |
 | D8-D11 | K1,H6,H5,J5 | 第 9 个棋格棋子编号的 4 位二进制，K1 为最高位 |
-| D12 | K6 | 高级外设（VGA）使用中，常亮 |
+| D12 | K6 | 蓝牙高级外设使用中，常亮 |
 | D13 | L1 | 游戏模式（初始化与游戏中亮） |
 | D14 | M1 | 演示模式 |
 | D15 | K3 | 游戏状态：闪烁 = 非法输入；长亮 = 通关；熄灭 = 其他 |
@@ -81,24 +80,42 @@ S2 进入演示模式（M1 亮，立即显示第 1 步初始化棋盘 `123456708
 
 S1 在演示模式中同样可以切换 LED 提示/统计页。
 
+### 蓝牙输出（手机）
+
+EGO1 板载 BLE-CC41-A，FPGA 通过 9600 8N1 发送 ASCII。每次棋盘变化发送：
+
+```
+1 2 3
+4 5 6
+7 0 8
+
+```
+
+- 未初始化的棋格显示 `-`；0 号棋显示 `0`。
+- 首次配对/连接后，在手机 App 里订阅模块的 notify 特征即可看到文本。
+- Android 可先用 “Serial Bluetooth Terminal”；如果搜不到，用 **nRF Connect for Mobile**。
+- iPhone 用 **nRF Connect** 或 **LightBlue**。
+- 使用蓝牙时 `K6` 点亮；提示和统计仍由左下 8 个 LED 展示，符合课程要求。
+
 ## 3. 目录结构
 
 ```
 proj/
 ├─ proj.xpr                 Vivado 工程
 ├─ rtl/
-│  ├─ top.v                 顶层、按键消抖、显示映射、LED/VGA 输出
+│  ├─ top.v                 顶层、按键消抖、显示映射、LED 输出、蓝牙上报
 │  ├─ game_core.v           状态机、棋盘、合法性、统计、撤回、演示
 │  ├─ debounce.v            按键消抖
 │  ├─ sync_vec.v            两级同步器
 │  ├─ seg7_scan.v           8 位数码管动态扫描
-│  └─ vga_board.v           可选 VGA 640x480 二维棋盘
+│  ├─ uart_tx.v             9600 8N1 串口发送
+│  └─ bt_report.v           棋盘变化时发送 3x3 ASCII 到蓝牙模块
 ├─ constrs/
 │  └─ ego1.xdc              EGO1 引脚约束
 ├─ sim/
 │  ├─ tb_game_core.v        核心逻辑自检（已通过）
 │  ├─ tb_top.v              顶层 + 消抖 + 数码管/LED 自检（已通过）
-│  └─ tb_vga.v              VGA 时序自检（已通过）
+│  └─ tb_bt.v               蓝牙 9600 8N1 报文自检（已通过）
 ├─ scripts/
 │  ├─ add_sources.tcl       把源码/约束/仿真加入工程
 │  ├─ update_project.tcl    更新仓库内 proj.xpr（已执行过）
@@ -142,7 +159,7 @@ proj/
 
 ## 5. 仿真验证
 
-已用 Icarus Verilog 13 跑通三个 testbench：
+已用 Icarus Verilog 13 跑通四个 testbench：
 
 ```bash
 # 核心逻辑
@@ -153,18 +170,18 @@ vvp sim/tb_game_core.out
 iverilog -g2012 -o sim/tb_top.out rtl/*.v sim/tb_top.v
 vvp sim/tb_top.out
 
-# VGA 时序
-iverilog -g2012 -o sim/tb_vga.out rtl/vga_board.v sim/tb_vga.v
-vvp sim/tb_vga.out
+# 蓝牙 9600 8N1 报文
+iverilog -g2012 -o sim/tb_bt.out rtl/uart_tx.v rtl/bt_report.v sim/tb_bt.v
+vvp sim/tb_bt.out
 ```
 
-结果：核心 65 项、顶层 54 项、VGA 4 项检查全部通过。
+结果：核心 65 项、顶层 54 项、蓝牙 2 项检查全部通过。
 
 ## 5.1 综合与实现结果（Vivado 2018.3）
 
 - 综合、实现、write_bitstream 全部成功：0 Errors，0 Critical Warnings。
-- 100 MHz 时钟时序收敛：WNS = 0.522 ns，TNS = 0，保持时间 WHS = 0.072 ns。
-- 资源：826 Slice LUT（3.97%）、394 Slice Register（0.95%）。
+- 100 MHz 时钟时序收敛：WNS = 0.936 ns，TNS = 0，保持时间 WHS = 0.097 ns。
+- 资源：681 Slice LUT（3.27%）、443 Slice Register（1.06%）。
 - bitstream：`../build/proj_build.runs/impl_1/top.bit`（约 2.1 MB）。
 - 报告：`../build/utilization.rpt`、`../build/timing_summary.rpt`。
 
@@ -187,9 +204,8 @@ vvp sim/tb_vga.out
   请先与助教确认。
 - **模式切换**：从演示模式切回游戏会回到“等待初始化”状态，避免把演示棋盘带入真实游戏。
 - **撤回**：记录每次 S0 操作（包括无效移动）前的状态，深度 16；撤回后重新计算通关标志。
-- **VGA**：使用 100 MHz 四分频得到 25 MHz 像素时钟（标准为 25.175 MHz），
-  640x480@60 实测时序正确，绝大多数显示器可锁定。若不需要 VGA，可删除 `vga_board` 实例
-  并把 `led_r[3]` 改为 0，其余功能不受影响。
+- **蓝牙输出**：9600 8N1，每次棋盘变化发送 3 行 ASCII；未初始化格显示 `-`。
+  `K6` 常亮表示高级外设使用中；提示和统计仍在基础 LED 上。
 - **引脚来源**：EGo1 用户手册 v1.1；课程 PDF 中的 LED 编号 D0-D15 与该手册一致。
   详见 `docs/ego1_pins.md`。
 
