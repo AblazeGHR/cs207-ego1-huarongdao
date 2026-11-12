@@ -15,6 +15,7 @@ if {![file exists $bitfile]} {
 
 open_hw
 connect_hw_server
+refresh_hw_server
 
 set targets [get_hw_targets]
 if {[llength $targets] == 0} {

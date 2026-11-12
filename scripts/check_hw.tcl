@@ -4,6 +4,7 @@ if {[catch {connect_hw_server} err]} {
     puts "NO_HW_SERVER: $err"
     exit 0
 }
+refresh_hw_server
 set targets [get_hw_targets]
 puts "HW_TARGETS: $targets"
 foreach t $targets {

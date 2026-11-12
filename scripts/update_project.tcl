@@ -16,6 +16,14 @@ if {![file exists $xpr_file]} {
 
 open_project $xpr_file
 
+# 清理已被删除文件的残留引用（例如移除 VGA 后）
+foreach f [get_files -quiet] {
+    if {![file exists $f]} {
+        puts "Removing missing file reference: $f"
+        remove_files $f
+    }
+}
+
 set rtl_files [glob -nocomplain [file join $root_dir rtl *.v]]
 set sim_files [glob -nocomplain [file join $root_dir sim *.v]]
 set xdc_file  [file join $root_dir constrs ego1.xdc]
