@@ -92,8 +92,10 @@ EGO1 板载 BLE-CC41-A，FPGA 通过 9600 8N1 发送 ASCII。每次棋盘变化�
 ```
 
 - 未初始化的棋格显示 `-`；0 号棋显示 `0`。
+- 棋盘变化时立即发送；另外每秒重发一次当前棋盘，手机连上后最多等 1 秒就能看到内容。
 - 首次配对/连接后，在手机 App 里订阅模块的 notify 特征即可看到文本。
-- Android 可先用 “Serial Bluetooth Terminal”；如果搜不到，用 **nRF Connect for Mobile**。
+- Android 可先用 **nRF Connect for Mobile**（BLE 调试最稳）；也可以试 “Serial Bluetooth Terminal”，
+  如果它只支持经典 SPP 就搜不到 CC41-A。
 - iPhone 用 **nRF Connect** 或 **LightBlue**。
 - 使用蓝牙时 `K6` 点亮；提示和统计仍由左下 8 个 LED 展示，符合课程要求。
 
@@ -180,8 +182,8 @@ vvp sim/tb_bt.out
 ## 5.1 综合与实现结果（Vivado 2018.3）
 
 - 综合、实现、write_bitstream 全部成功：0 Errors，0 Critical Warnings。
-- 100 MHz 时钟时序收敛：WNS = 0.936 ns，TNS = 0，保持时间 WHS = 0.097 ns。
-- 资源：681 Slice LUT（3.27%）、443 Slice Register（1.06%）。
+- 100 MHz 时钟时序收敛：WNS = 0.683 ns，TNS = 0，保持时间 WHS = 0.058 ns。
+- 资源：690 Slice LUT（3.32%）、476 Slice Register（1.14%）。
 - bitstream：`../build/proj_build.runs/impl_1/top.bit`（约 2.1 MB）。
 - 报告：`../build/utilization.rpt`、`../build/timing_summary.rpt`。
 
