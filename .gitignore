@@ -1,0 +1,24 @@
+# Vivado generated
+proj.cache/
+proj.hw/
+proj.ip_user_files/
+proj.sim/
+.Xil/
+*.jou
+*.log
+*.str
+*.dcp
+*.bit
+*.ltx
+*.rpt
+
+# Simulation outputs
+sim/*.out
+sim/*.vcd
+*.vcd
+*.fst
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
