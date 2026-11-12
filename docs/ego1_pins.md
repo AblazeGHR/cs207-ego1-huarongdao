@@ -80,11 +80,12 @@
 
 位选：`seg_en[3]=G1`, `[2]=F1`, `[1]=E1`, `[0]=G6`（从左到右）。
 
-## 蓝牙 BLE-CC41-A（高级外设输出）
+## 串口 / 蓝牙（高级外设输出）
 
 | 信号 | FPGA 引脚 | 说明 |
 |---|---|---|
-| bt_tx | N2 | FPGA UART TX → 模块 BT_RX |
+| uart_tx | T4 | FPGA UART TX → 板载 CP2102 USB-UART（当前使用） |
+| bt_tx | N2 | FPGA UART TX → 蓝牙模块 BT_RX（模块未识别，保留） |
 | （未使用） | L3 | 模块 BT_TX → FPGA RX，本设计只发送不接收 |
 
-默认 9600 bps、8 数据位、无校验、1 停止位；手机用 BLE 串口 App 订阅 notify 特征。
+默认 9600 bps、8 数据位、无校验、1 停止位；电脑串口终端或手机 OTG 串口 App 直接显示 3x3 棋盘。
