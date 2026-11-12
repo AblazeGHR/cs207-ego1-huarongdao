@@ -14,8 +14,7 @@ module tb_top;
 
     wire [15:0] led;
     wire [7:0]  seg0, seg1, seg_en;
-    wire [3:0]  vga_r, vga_g, vga_b;
-    wire        vga_hs, vga_vs;
+    wire        bt_tx;
 
     integer errors = 0;
 
@@ -30,12 +29,8 @@ module tb_top;
         .led     (led),
         .seg0    (seg0),
         .seg1    (seg1),
-        .seg_en (seg_en),
-        .vga_r   (vga_r),
-        .vga_g   (vga_g),
-        .vga_b   (vga_b),
-        .vga_hs  (vga_hs),
-        .vga_vs  (vga_vs)
+        .seg_en  (seg_en),
+        .bt_tx   (bt_tx)
     );
 
     always #5 clk100 = ~clk100;
