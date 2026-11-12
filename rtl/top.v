@@ -38,13 +38,7 @@ module top #(
     output wire [7:0]  seg0,
     output wire [7:0]  seg1,
     output wire [7:0]  seg_en,
-
-    // 可选高级外设：VGA 二维棋盘
-    output wire [3:0]  vga_r,
-    output wire [3:0]  vga_g,
-    output wire [3:0]  vga_b,
-    output wire        vga_hs,
-    output wire        vga_vs
+    output wire        bt_tx     // 蓝牙模块 UART 发送
 );
 
     // ------------------------------------------------------------------
@@ -299,7 +293,7 @@ module top #(
         if ((state == 2'd0) && err_flag && (err_pos == 4'd8))
             led_r[7:4] = 4'hF;
 
-        led_r[3] = 1'b1;                 // VGA 高级外设使用中
+        led_r[3] = 1'b1;                 // 蓝牙高级外设使用中，K6 点亮
         led_r[2] = (state != 2'd2);      // 游戏模式
         led_r[1] = (state == 2'd2);      // 演示模式
         led_r[0] = won ? 1'b1 : (blink_enable & blink_phase);
@@ -308,17 +302,16 @@ module top #(
     assign led = led_r;
 
     // ------------------------------------------------------------------
-    // 可选 VGA 二维棋盘
+    // 蓝牙 UART 上报：棋盘变化时发送 3x3 ASCII
     // ------------------------------------------------------------------
-    vga_board u_vga (
-        .clk   (clk100),
-        .rst   (rst_sync),
-        .board (board),
-        .vga_r (vga_r),
-        .vga_g (vga_g),
-        .vga_b (vga_b),
-        .vga_hs(vga_hs),
-        .vga_vs(vga_vs)
+    bt_report #(
+        .CLK_HZ (CLK_HZ),
+        .BAUD   (9600)
+    ) u_bt (
+        .clk    (clk100),
+        .rst    (rst_sync),
+        .board  (board),
+        .bt_tx  (bt_tx)
     );
 
 endmodule

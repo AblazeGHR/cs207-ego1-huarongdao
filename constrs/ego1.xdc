@@ -87,25 +87,9 @@ set_property -dict { PACKAGE_PIN E1 IOSTANDARD LVCMOS33 } [get_ports {seg_en[1]}
 set_property -dict { PACKAGE_PIN G6 IOSTANDARD LVCMOS33 } [get_ports {seg_en[0]}]
 
 ## ---------------------------------------------------------------------------
-## VGA (optional advanced output)
+## Bluetooth BLE-CC41-A UART (FPGA TX -> module RX)
 ## ---------------------------------------------------------------------------
-set_property -dict { PACKAGE_PIN F5 IOSTANDARD LVCMOS33 } [get_ports {vga_r[0]}]
-set_property -dict { PACKAGE_PIN C6 IOSTANDARD LVCMOS33 } [get_ports {vga_r[1]}]
-set_property -dict { PACKAGE_PIN C5 IOSTANDARD LVCMOS33 } [get_ports {vga_r[2]}]
-set_property -dict { PACKAGE_PIN B7 IOSTANDARD LVCMOS33 } [get_ports {vga_r[3]}]
-
-set_property -dict { PACKAGE_PIN B6 IOSTANDARD LVCMOS33 } [get_ports {vga_g[0]}]
-set_property -dict { PACKAGE_PIN A6 IOSTANDARD LVCMOS33 } [get_ports {vga_g[1]}]
-set_property -dict { PACKAGE_PIN A5 IOSTANDARD LVCMOS33 } [get_ports {vga_g[2]}]
-set_property -dict { PACKAGE_PIN D8 IOSTANDARD LVCMOS33 } [get_ports {vga_g[3]}]
-
-set_property -dict { PACKAGE_PIN C7 IOSTANDARD LVCMOS33 } [get_ports {vga_b[0]}]
-set_property -dict { PACKAGE_PIN E6 IOSTANDARD LVCMOS33 } [get_ports {vga_b[1]}]
-set_property -dict { PACKAGE_PIN E5 IOSTANDARD LVCMOS33 } [get_ports {vga_b[2]}]
-set_property -dict { PACKAGE_PIN E7 IOSTANDARD LVCMOS33 } [get_ports {vga_b[3]}]
-
-set_property -dict { PACKAGE_PIN D7 IOSTANDARD LVCMOS33 } [get_ports vga_hs]
-set_property -dict { PACKAGE_PIN C4 IOSTANDARD LVCMOS33 } [get_ports vga_vs]
+set_property -dict { PACKAGE_PIN N2 IOSTANDARD LVCMOS33 } [get_ports bt_tx]
 
 ## ---------------------------------------------------------------------------
 ## Configuration
