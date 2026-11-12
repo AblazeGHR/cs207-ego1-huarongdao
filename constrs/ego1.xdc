@@ -87,9 +87,12 @@ set_property -dict { PACKAGE_PIN E1 IOSTANDARD LVCMOS33 } [get_ports {seg_en[1]}
 set_property -dict { PACKAGE_PIN G6 IOSTANDARD LVCMOS33 } [get_ports {seg_en[0]}]
 
 ## ---------------------------------------------------------------------------
-## Bluetooth BLE-CC41-A UART (FPGA TX -> module RX)
+## UART outputs
+##   N2: Bluetooth BLE-CC41-A (current module not detected, kept for compatibility)
+##   T4: onboard CP2102 USB-UART (FPGA TX)
 ## ---------------------------------------------------------------------------
 set_property -dict { PACKAGE_PIN N2 IOSTANDARD LVCMOS33 } [get_ports bt_tx]
+set_property -dict { PACKAGE_PIN T4 IOSTANDARD LVCMOS33 } [get_ports uart_tx]
 
 ## ---------------------------------------------------------------------------
 ## Configuration

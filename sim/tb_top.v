@@ -15,6 +15,7 @@ module tb_top;
     wire [15:0] led;
     wire [7:0]  seg0, seg1, seg_en;
     wire        bt_tx;
+    wire        uart_tx;
 
     integer errors = 0;
 
@@ -30,7 +31,8 @@ module tb_top;
         .seg0    (seg0),
         .seg1    (seg1),
         .seg_en  (seg_en),
-        .bt_tx   (bt_tx)
+        .bt_tx   (bt_tx),
+        .uart_tx (uart_tx)
     );
 
     always #5 clk100 = ~clk100;

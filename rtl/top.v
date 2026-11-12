@@ -38,7 +38,8 @@ module top #(
     output wire [7:0]  seg0,
     output wire [7:0]  seg1,
     output wire [7:0]  seg_en,
-    output wire        bt_tx     // 蓝牙模块 UART 发送
+    output wire        bt_tx,    // 蓝牙模块 UART 发送（N2，当前模块未识别）
+    output wire        uart_tx   // 板载 CP2102 USB-UART 发送（T4）
 );
 
     // ------------------------------------------------------------------
@@ -293,7 +294,7 @@ module top #(
         if ((state == 2'd0) && err_flag && (err_pos == 4'd8))
             led_r[7:4] = 4'hF;
 
-        led_r[3] = 1'b1;                 // 蓝牙高级外设使用中，K6 点亮
+        led_r[3] = 1'b1;                 // 高级外设（UART/蓝牙）使用中，K6 点亮
         led_r[2] = (state != 2'd2);      // 游戏模式
         led_r[1] = (state == 2'd2);      // 演示模式
         led_r[0] = won ? 1'b1 : (blink_enable & blink_phase);
@@ -313,5 +314,8 @@ module top #(
         .board  (board),
         .bt_tx  (bt_tx)
     );
+
+    // 同一份报文也送到板载 USB-UART，方便电脑/手机 OTG 直接看
+    assign uart_tx = bt_tx;
 
 endmodule
