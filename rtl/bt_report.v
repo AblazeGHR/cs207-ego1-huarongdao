@@ -13,8 +13,9 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module bt_report #(
-    parameter integer CLK_HZ = 100_000_000,
-    parameter integer BAUD   = 9600
+    parameter integer CLK_HZ     = 100_000_000,
+    parameter integer BAUD       = 9600,
+    parameter integer REFRESH_MS = 1000
 )(
     input  wire        clk,
     input  wire        rst,
@@ -22,7 +23,8 @@ module bt_report #(
     output wire        bt_tx
 );
 
-    localparam integer MSG_LEN = 19; // 3 行 * 6 字符 + 1 个空行
+    localparam integer MSG_LEN     = 19; // 3 行 * 6 字符 + 1 个空行
+    localparam integer REFRESH_CYC = (CLK_HZ / 1000) * REFRESH_MS;
 
     localparam [1:0] S_IDLE   = 2'd0;
     localparam [1:0] S_SEND   = 2'd1;
@@ -34,6 +36,23 @@ module bt_report #(
     reg [4:0]  idx;
     reg [1:0]  state;
     reg        send_req;
+
+    // 每秒重发一次当前棋盘，手机连上后最多等 1 秒就能看到内容
+    reg [31:0] refresh_cnt;
+    reg        refresh_tick;
+
+    always @(posedge clk) begin
+        if (rst) begin
+            refresh_cnt  <= 32'd0;
+            refresh_tick <= 1'b0;
+        end else if (refresh_cnt >= REFRESH_CYC - 1) begin
+            refresh_cnt  <= 32'd0;
+            refresh_tick <= 1'b1;
+        end else begin
+            refresh_cnt  <= refresh_cnt + 32'd1;
+            refresh_tick <= 1'b0;
+        end
+    end
 
     wire       tx_busy;
     wire [7:0] tx_byte = msg_byte(idx, snap);
@@ -62,7 +81,7 @@ module bt_report #(
 
             case (state)
                 S_IDLE: begin
-                    if (board != board_q) begin
+                    if ((board != board_q) || refresh_tick) begin
                         snap    <= board;
                         board_q <= board;
                         idx     <= 5'd0;
