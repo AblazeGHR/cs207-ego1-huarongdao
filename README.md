@@ -15,7 +15,7 @@
 | 通关判定、十进制步数展示 | 10 | 棋盘等于 `123456780` 判定；通关后 S0 在数码管显示有效/无效步数十进制 |
 | 撤回 | 5 | S4 撤回，深度 16，棋盘与计数同步恢复（含无效步） |
 | 演示模式 | 10 | S2 进入，S3 单步；硬编码 `123456708 -> 非法移动 1 -> 合法移动 8 -> 通关 -> 统计 -> 复位` |
-| 高级外设（可选） | — | UART 输出到板载 CP2102，9600 8N1，K6 点亮；蓝牙模块保留但未识别 |
+| 高级外设（可选） | — | UART 输出 + PC GUI 二维棋盘，9600 8N1，K6 点亮 |
 
 ## 2. 操作说明
 
@@ -100,6 +100,20 @@ EGO1 板载 CP2102 USB-UART，FPGA 通过 **T4** 发送 9600 8N1 ASCII。每次�
 - 同一份报文也送到蓝牙模块的 `N2`；本板蓝牙模块未扫描到，UART 是当前可用的高级输出。
 - 使用 UART 时 `K6` 点亮；提示和统计仍由左下 8 个 LED 展示，符合课程要求。
 
+### PC GUI（串口监视）
+
+[gui/board_gui.py](gui/board_gui.py) 是一个 tkinter 串口监视器：读取 COM 口，
+解析 3x3 ASCII，实时画出棋盘。
+
+```bash
+E:/software/miniforge/python.exe gui/board_gui.py --port COM4
+```
+
+- 自动优先选择 CP210x；也可以在下拉框换串口；
+- “连接/断开”按钮控制串口；
+- 只做输出显示，操作仍然用板上的按键和拨码开关；
+- 依赖 `pyserial`，tkinter 是 Python 自带。
+
 ## 3. 目录结构
 
 ```
@@ -126,6 +140,9 @@ proj/
 │  ├─ build_batch.tcl       独立批处理构建（不占用 GUI 工程）
 │  ├─ program.tcl           连接 EGO1 并下载 bitstream
 │  └─ check_hw.tcl          仅检测 JTAG 连接
+├─ gui/
+│  ├─ board_gui.py          PC 串口监视 GUI
+│  └─ requirements.txt      Python 依赖
 └─ docs/
    ├─ ego1_pins.md          EGO1 引脚对照与来源
    ├─ quick_reference.md    操作 / 按键 / LED 速查
