@@ -309,10 +309,17 @@ module top #(
         .CLK_HZ (CLK_HZ),
         .BAUD   (9600)
     ) u_bt (
-        .clk    (clk100),
-        .rst    (rst_sync),
-        .board  (board),
-        .bt_tx  (bt_tx)
+        .clk        (clk100),
+        .rst        (rst_sync),
+        .board      (board),
+        .valid_cnt  (valid_cnt),
+        .invalid_cnt(invalid_cnt),
+        .won        (won),
+        .state      (state),
+        .show_stats (show_stats),
+        .demo_stage (demo_stage),
+        .led        (led_r),
+        .bt_tx      (bt_tx)
     );
 
     // 同一份报文也送到板载 USB-UART，方便电脑/手机 OTG 直接看
