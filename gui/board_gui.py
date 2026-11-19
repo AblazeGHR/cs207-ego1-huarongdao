@@ -121,7 +121,7 @@ class BoardGUI:
         if demo:
             self.apply_frame(
                 [["1", "2", "3"], ["4", "5", "6"], ["7", "0", "8"]],
-                {"v": 0, "i": 0, "w": 0, "m": 1, "s": 0, "d": 0, "led": 0x3B00},
+                {"v": 0, "i": 0, "w": 0, "m": 1, "s": 0, "d": 0, "led": 0x0B0C},
             )
             self.status_var.set("示例模式（未连接串口）")
             self.last_var.set("示例棋盘 123456708")
@@ -436,7 +436,7 @@ class BoardGUI:
         self.demo_var.set(f"第 {st['d']} 步" if st["m"] == 2 else "—")
 
         for i, lbl in enumerate(self.led_labels):
-            on = (st["led"] >> i) & 1
+            on = (st["led"] >> (15 - i)) & 1
             if on:
                 lbl.config(bg="#f2b134", fg="#2f2418")
             else:
