@@ -2,12 +2,15 @@
 # -*- coding: utf-8 -*-
 """EGO1 数字华容道 PC 监视 GUI。
 
-读取板载 CP2102 的串口（9600 8N1），解析 FPGA 发来的 3x3 ASCII 棋盘并绘图。
-默认自动连接 CP210x；也可以用 --port COM4 指定串口。
+读取板载 CP2102 的串口（9600 8N1），解析 FPGA 发来的：
+  3x3 ASCII 棋盘 + 状态行
+  V00 I01 W0 M1 S0 D0 L00A5
+并实时显示棋盘、步数、模式、提示、16 个 LED 和最近操作（含撤销）。
 """
 
 import argparse
 import queue
+import re
 import threading
 import time
 import tkinter as tk
@@ -29,22 +32,47 @@ MUTED = "#d8d1c2"
 MUTED_FG = "#8b8272"
 ACCENT = "#2a9d8f"
 DANGER = "#c8553d"
+GOOD = "#2a9d8f"
+WARN = "#d9822b"
+GRID = "#d4ccbd"
+
+STATUS_RE = re.compile(
+    r"^V(\d{2})\s+I(\d{2})\s+W(\d)\s+M(\d)\s+S(\d)\s+D(\d)\s+L([0-9A-Fa-f]{4})$"
+)
 
 
 class BoardParser:
-    """把串口行组装成 3x3 棋盘。"""
+    """把串口行组装成 (board_rows, status_dict)。"""
 
     def __init__(self):
         self.rows = []
+        self.status = None
 
     def feed(self, line: str):
         line = line.strip()
+
         if not line:
             if len(self.rows) == 3:
-                board = [row[:] for row in self.rows]
+                result = ([row[:] for row in self.rows], self.status)
                 self.rows = []
-                return board
+                self.status = None
+                return result
             self.rows = []
+            self.status = None
+            return None
+
+        m = STATUS_RE.match(line)
+        if m:
+            v, i, w, mode, page, demo, led = m.groups()
+            self.status = {
+                "v": int(v),
+                "i": int(i),
+                "w": int(w),
+                "m": int(mode),
+                "s": int(page),
+                "d": int(demo),
+                "led": int(led, 16),
+            }
             return None
 
         parts = line.split()
@@ -54,6 +82,7 @@ class BoardParser:
                 self.rows = self.rows[-3:]
         else:
             self.rows = []
+            self.status = None
         return None
 
 
@@ -71,20 +100,29 @@ class BoardGUI:
         self.parser = BoardParser()
         self.frames = 0
         self.tiles = []
+        self.led_labels = []
+        self.prev_status = None
 
         self.port_var = tk.StringVar()
         self.status_var = tk.StringVar(value="未连接")
         self.last_var = tk.StringVar(value="等待数据")
+        self.valid_var = tk.StringVar(value="—")
+        self.invalid_var = tk.StringVar(value="—")
+        self.mode_var = tk.StringVar(value="—")
+        self.state_var = tk.StringVar(value="—")
+        self.demo_var = tk.StringVar(value="—")
+        self.page_var = tk.StringVar(value="—")
+        self.hint_var = tk.StringVar(value="—")
+        self.action_var = tk.StringVar(value="—")
 
         self.build_ui()
         self.refresh_ports()
 
         if demo:
-            self.apply_board([
-                ["1", "2", "3"],
-                ["4", "5", "6"],
-                ["7", "0", "8"],
-            ])
+            self.apply_frame(
+                [["1", "2", "3"], ["4", "5", "6"], ["7", "0", "8"]],
+                {"v": 0, "i": 0, "w": 0, "m": 1, "s": 0, "d": 0, "led": 0x3B00},
+            )
             self.status_var.set("示例模式（未连接串口）")
             self.last_var.set("示例棋盘 123456708")
         else:
@@ -96,19 +134,19 @@ class BoardGUI:
     # ------------------------------------------------------------------ UI
     def build_ui(self):
         self.root.title("EGO1 数字华容道")
-        self.root.geometry("600x780")
-        self.root.minsize(540, 700)
+        self.root.geometry("660x930")
+        self.root.minsize(600, 840)
         self.root.configure(bg=BG)
 
-        header = tk.Frame(self.root, bg=HEADER, padx=24, pady=18)
+        header = tk.Frame(self.root, bg=HEADER, padx=24, pady=16)
         header.pack(fill="x")
         tk.Label(header, text="数字华容道", bg=HEADER, fg="#ffffff",
                  font=("Microsoft YaHei UI", 22, "bold")).pack(anchor="w")
-        tk.Label(header, text="EGO1 · UART 9600 8N1 · 3x3 实时棋盘",
+        tk.Label(header, text="EGO1 · UART 9600 8N1 · 3x3 实时棋盘与状态",
                  bg=HEADER, fg="#cfe3dc",
                  font=("Microsoft YaHei UI", 10)).pack(anchor="w", pady=(4, 0))
 
-        toolbar = tk.Frame(self.root, bg=BG, padx=24, pady=14)
+        toolbar = tk.Frame(self.root, bg=BG, padx=24, pady=12)
         toolbar.pack(fill="x")
 
         tk.Label(toolbar, text="串口", bg=BG, fg="#3c3a34",
@@ -133,8 +171,8 @@ class BoardGUI:
 
         # 棋盘卡片
         card = tk.Frame(self.root, bg=PANEL, padx=22, pady=22,
-                        highlightbackground="#ddd5c6", highlightthickness=1)
-        card.pack(fill="both", expand=True, padx=24, pady=(0, 12))
+                        highlightbackground=GRID, highlightthickness=1)
+        card.pack(fill="both", expand=True, padx=24, pady=(0, 10))
 
         board = tk.Frame(card, bg=PANEL)
         board.pack(fill="both", expand=True)
@@ -147,24 +185,46 @@ class BoardGUI:
                                bg=MUTED, fg=MUTED_FG,
                                font=("Microsoft YaHei UI", 34, "bold"),
                                bd=0, relief="flat",
-                               highlightbackground="#d4ccbd",
+                               highlightbackground=GRID,
                                highlightthickness=1)
                 lbl.grid(row=r, column=c, padx=6, pady=6, sticky="nsew")
                 self.tiles.append(lbl)
 
-        legend = tk.Frame(self.root, bg=BG, padx=24)
-        legend.pack(fill="x")
+        # 状态信息卡片
+        info = tk.Frame(self.root, bg=PANEL, padx=18, pady=14,
+                        highlightbackground=GRID, highlightthickness=1)
+        info.pack(fill="x", padx=24, pady=(0, 10))
+        for c in range(4):
+            info.grid_columnconfigure(c, weight=1)
 
-        self.add_legend(legend, "1-8 棋子", TILE, TILE_FG)
-        self.add_legend(legend, "0 空位", EMPTY, EMPTY_FG)
-        self.add_legend(legend, "- 未初始化", MUTED, MUTED_FG)
+        self.add_metric(info, 0, 0, "有效步数", self.valid_var, GOOD)
+        self.add_metric(info, 0, 1, "无效步数", self.invalid_var, WARN)
+        self.add_metric(info, 0, 2, "模式", self.mode_var, "#3c3a34")
+        self.add_metric(info, 0, 3, "状态", self.state_var, "#3c3a34")
+        self.add_metric(info, 1, 0, "演示步", self.demo_var, "#3c3a34")
+        self.add_metric(info, 1, 1, "LED 页", self.page_var, "#3c3a34")
+        self.add_wide_metric(info, 1, 2, "可移动棋子", self.hint_var)
+        self.add_wide_metric(info, 1, 3, "最近操作", self.action_var, span=1)
 
-        tk.Label(legend, text="步数/提示看开发板 LED",
-                 bg=BG, fg="#7a7264",
-                 font=("Microsoft YaHei UI", 9)).pack(side="right")
+        # 16 个 LED
+        led_card = tk.Frame(self.root, bg=PANEL, padx=18, pady=12,
+                            highlightbackground=GRID, highlightthickness=1)
+        led_card.pack(fill="x", padx=24, pady=(0, 10))
+        tk.Label(led_card, text="板载 LED（D0 → D15）", bg=PANEL, fg="#7a7264",
+                 font=("Microsoft YaHei UI", 9)).pack(anchor="w", pady=(0, 6))
+        led_row = tk.Frame(led_card, bg=PANEL)
+        led_row.pack(anchor="w")
 
-        # 状态与日志
-        status = tk.Frame(self.root, bg=BG, padx=24, pady=8)
+        for i in range(16):
+            lbl = tk.Label(led_row, text=f"D{i}", width=2, height=1,
+                           bg="#e5ded0", fg="#9a917f",
+                           font=("Consolas", 7), bd=0)
+            padx = (0, 8) if i in (7, 11) else (0, 2)
+            lbl.pack(side="left", padx=padx)
+            self.led_labels.append(lbl)
+
+        # 状态栏
+        status = tk.Frame(self.root, bg=BG, padx=24, pady=6)
         status.pack(fill="x")
         tk.Label(status, textvariable=self.status_var, bg=BG, fg="#3c3a34",
                  font=("Microsoft YaHei UI", 10)).pack(side="left")
@@ -172,22 +232,33 @@ class BoardGUI:
                  font=("Microsoft YaHei UI", 9)).pack(side="right")
 
         log_frame = tk.Frame(self.root, bg=BG, padx=24, pady=0)
-        log_frame.pack(fill="x", pady=(0, 16))
+        log_frame.pack(fill="x", pady=(0, 14))
         self.log_text = tk.Text(log_frame, height=5, bg="#1f2933", fg="#d9e2ec",
                                 insertbackground="#d9e2ec", bd=0,
                                 font=("Consolas", 9), padx=10, pady=8,
                                 state="disabled")
         self.log_text.pack(fill="x")
 
-    def add_legend(self, parent, text, color, fg):
-        sw = tk.Label(parent, bg=color, width=2, height=1,
-                      highlightbackground="#c9c1b2", highlightthickness=1)
-        sw.pack(side="left", padx=(0, 4))
-        tk.Label(parent, text=text, bg=BG, fg=fg,
-                 font=("Microsoft YaHei UI", 9)).pack(side="left", padx=(0, 14))
+    def add_metric(self, parent, row, col, label, var, color="#3c3a34"):
+        frame = tk.Frame(parent, bg=PANEL, padx=6, pady=4)
+        frame.grid(row=row, column=col, sticky="nsew")
+        tk.Label(frame, text=label, bg=PANEL, fg="#8a8173",
+                 font=("Microsoft YaHei UI", 9)).pack(anchor="w")
+        tk.Label(frame, textvariable=var, bg=PANEL, fg=color,
+                 font=("Microsoft YaHei UI", 15, "bold")).pack(anchor="w")
+
+    def add_wide_metric(self, parent, row, col, label, var, span=1):
+        frame = tk.Frame(parent, bg=PANEL, padx=6, pady=4)
+        frame.grid(row=row, column=col, columnspan=span, sticky="nsew")
+        tk.Label(frame, text=label, bg=PANEL, fg="#8a8173",
+                 font=("Microsoft YaHei UI", 9)).pack(anchor="w")
+        tk.Label(frame, textvariable=var, bg=PANEL, fg="#3c3a34",
+                 font=("Microsoft YaHei UI", 11, "bold")).pack(anchor="w")
 
     # -------------------------------------------------------------- serial
     def refresh_ports(self):
+        if self.ser:
+            return
         ports = list(list_ports.comports())
         ports.sort(key=lambda p: (0 if "CP210" in (p.description or "").upper() else 1,
                                   p.device))
@@ -235,6 +306,7 @@ class BoardGUI:
         self.port = port
         self.parser = BoardParser()
         self.frames = 0
+        self.prev_status = None
         self.stop_event.clear()
         self.reader = threading.Thread(target=self.read_loop, args=(self.ser,),
                                        daemon=True)
@@ -284,13 +356,55 @@ class BoardGUI:
         self.root.after(50, self.poll_queue)
 
     def on_line(self, line):
-        board = self.parser.feed(line)
-        if board:
-            self.apply_board(board)
+        result = self.parser.feed(line)
+        if result:
+            rows, status = result
+            self.apply_frame(rows, status)
 
     # --------------------------------------------------------------- board
-    def apply_board(self, rows):
+    def apply_frame(self, rows, status):
         flat = [v for row in rows for v in row]
+        self.update_tiles(flat)
+        self.hint_var.set(self.format_hints(flat))
+
+        if status:
+            self.update_status(status)
+            action = self.infer_action(flat, status)
+        else:
+            self.valid_var.set("—")
+            self.invalid_var.set("—")
+            self.mode_var.set("—")
+            self.state_var.set("—")
+            self.demo_var.set("—")
+            self.page_var.set("—")
+            action = "棋盘更新"
+
+        self.action_var.set(action)
+        self.frames += 1
+        self.last_var.set("最后更新 " + time.strftime("%H:%M:%S"))
+
+        if not self.demo:
+            self.status_var.set(f"已连接 {self.port} @ {BAUD} 8N1 · 帧 {self.frames}")
+
+        if action != "同步" or self.prev_status is None:
+            if status:
+                self.log(f"{action} | V{status['v']} I{status['i']} "
+                         f"W{status['w']} M{status['m']} D{status['d']}")
+            else:
+                self.log(action)
+
+        if status:
+            self.prev_status = {
+                "board": flat,
+                "v": status["v"],
+                "i": status["i"],
+                "w": status["w"],
+                "m": status["m"],
+                "s": status["s"],
+                "d": status["d"],
+            }
+
+    def update_tiles(self, flat):
         for lbl, val in zip(self.tiles, flat):
             if val == "0":
                 lbl.config(text="空", bg=EMPTY, fg=EMPTY_FG,
@@ -302,18 +416,99 @@ class BoardGUI:
                 lbl.config(text=val, bg=TILE, fg=TILE_FG,
                            font=("Microsoft YaHei UI", 34, "bold"))
 
-        self.frames += 1
-        self.last_var.set("最后更新 " + time.strftime("%H:%M:%S"))
-        if not self.demo:
-            self.status_var.set(f"已连接 {self.port} @ {BAUD} 8N1 · 帧 {self.frames}")
-        self.log("棋盘 " + " / ".join(" ".join(r) for r in rows))
+    def update_status(self, st):
+        self.valid_var.set(str(st["v"]))
+        self.invalid_var.set(str(st["i"]))
+        self.page_var.set("统计页" if st["s"] else "提示页")
+
+        mode_names = {0: "初始化", 1: "游戏", 2: "演示"}
+        self.mode_var.set(mode_names.get(st["m"], "?"))
+
+        if st["w"]:
+            self.state_var.set("已通关")
+        elif st["m"] == 0:
+            self.state_var.set("等待初始化")
+        elif st["m"] == 2:
+            self.state_var.set(f"演示第 {st['d']} 步")
+        else:
+            self.state_var.set("进行中")
+
+        self.demo_var.set(f"第 {st['d']} 步" if st["m"] == 2 else "—")
+
+        for i, lbl in enumerate(self.led_labels):
+            on = (st["led"] >> i) & 1
+            if on:
+                lbl.config(bg="#f2b134", fg="#2f2418")
+            else:
+                lbl.config(bg="#e5ded0", fg="#9a917f")
+
+    def format_hints(self, flat):
+        hints = self.compute_hints(flat)
+        if not hints:
+            return "无"
+        return " ".join(str(x) for x in hints)
+
+    @staticmethod
+    def compute_hints(flat):
+        try:
+            zero = flat.index("0")
+        except ValueError:
+            return []
+
+        zr, zc = divmod(zero, 3)
+        hints = []
+        for idx, val in enumerate(flat):
+            if val not in "12345678":
+                continue
+            r, c = divmod(idx, 3)
+            if abs(r - zr) + abs(c - zc) == 1:
+                hints.append(int(val))
+        return sorted(hints)
+
+    def infer_action(self, flat, st):
+        prev = self.prev_status
+        if prev is None:
+            return "首帧"
+
+        if st["m"] == 0 and all(v == "-" for v in flat) and flat != prev["board"]:
+            return "复位"
+
+        if st["v"] < prev["v"] or st["i"] < prev["i"]:
+            return "撤销"
+
+        if prev["m"] == 0 and st["m"] == 1:
+            return "初始化完成，进入游戏"
+
+        if st["m"] != prev["m"]:
+            return "模式切换"
+
+        if st["m"] == 2 and st["d"] != prev["d"]:
+            return f"演示第 {st['d']} 步"
+
+        if st["w"] != prev["w"]:
+            return "通关" if st["w"] else "返回未通关"
+
+        if st["v"] > prev["v"]:
+            return "有效移动"
+
+        if st["i"] > prev["i"]:
+            return "无效移动"
+
+        if flat != prev["board"]:
+            if st["m"] == 0:
+                return "初始化输入"
+            return "棋盘更新"
+
+        if st["s"] != prev["s"]:
+            return "切换 LED 页"
+
+        return "同步"
 
     def log(self, text):
         ts = time.strftime("%H:%M:%S")
         line = text if text else "<空行>"
         self.log_text.configure(state="normal")
         self.log_text.insert("end", f"{ts}  {line}\n")
-        # 只保留最近 200 行
         try:
             line_count = int(self.log_text.index("end-1c").split(".")[0])
             if line_count > 200:
