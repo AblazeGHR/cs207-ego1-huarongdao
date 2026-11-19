@@ -3,6 +3,8 @@
 3x3 数字华容道数字游戏机，面向 EGO1（XC7A35T-1CSG324C）开发板。
 本目录是 Vivado 工程 `proj.xpr` 的源码部分，已实现课程 PDF 的全部基础功能。
 
+> 按键 / 拨码 / LED / 数码管速查：[docs/quick_reference.md](docs/quick_reference.md)
+
 ## 1. 已实现功能与评分项对照
 
 | PDF 要求 | 分值 | 实现情况 |
@@ -126,6 +128,7 @@ proj/
 │  └─ check_hw.tcl          仅检测 JTAG 连接
 └─ docs/
    ├─ ego1_pins.md          EGO1 引脚对照与来源
+   ├─ quick_reference.md    操作 / 按键 / LED 速查
    └─ design_report.md      设计报告草稿
 ```
 
