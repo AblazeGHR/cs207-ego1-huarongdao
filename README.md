@@ -84,14 +84,27 @@ S1 在演示模式中同样可以切换 LED 提示/统计页。
 
 ### 串口输出（电脑 / 手机）
 
-EGO1 板载 CP2102 USB-UART，FPGA 通过 **T4** 发送 9600 8N1 ASCII。每次棋盘变化发送：
+EGO1 板载 CP2102 USB-UART，FPGA 通过 **T4** 发送 9600 8N1 ASCII。每次变化发送：
 
 ```
 1 2 3
 4 5 6
 7 0 8
+V00 I01 W0 M1 S0 D0 L00A5
 
 ```
+
+状态行字段：
+
+| 字段 | 含义 |
+|---|---|
+| `V00` | 有效步数 00-15 |
+| `I01` | 无效步数 00-15 |
+| `W0` | 是否通关 |
+| `M1` | 模式：0 初始化 / 1 游戏 / 2 演示 |
+| `S0` | LED 页：0 提示 / 1 统计 |
+| `D0` | 演示步 |
+| `L00A5` | 16 位 LED 状态（十六进制） |
 
 - 电脑端：插 EGO1 的 USB-UART 口，打开串口终端（COM 口，9600 8N1），
   已实测每秒钟收到一次 3x3 棋盘。
@@ -103,7 +116,8 @@ EGO1 板载 CP2102 USB-UART，FPGA 通过 **T4** 发送 9600 8N1 ASCII。每次�
 ### PC GUI（串口监视）
 
 [gui/board_gui.py](gui/board_gui.py) 是一个 tkinter 串口监视器：读取 COM 口，
-解析 3x3 ASCII，实时画出棋盘。
+解析 3x3 棋盘和状态行，实时显示棋盘、有效/无效步数、模式、通关状态、演示步、
+16 个 LED、可移动棋子和最近操作（撤销会被识别并记录）。
 
 ```bash
 E:/software/miniforge/python.exe gui/board_gui.py --port COM4
@@ -201,8 +215,8 @@ vvp sim/tb_bt.out
 ## 5.1 综合与实现结果（Vivado 2018.3）
 
 - 综合、实现、write_bitstream 全部成功：0 Errors，0 Critical Warnings。
-- 100 MHz 时钟时序收敛：WNS = 1.194 ns，TNS = 0，保持时间 WHS = 0.097 ns。
-- 资源：690 Slice LUT（3.32%）、477 Slice Register（1.15%）。
+- 100 MHz 时钟时序收敛：WNS = 0.369 ns，TNS = 0，保持时间 WHS = 0.097 ns。
+- 资源：762 Slice LUT（3.66%）、513 Slice Register（1.23%）。
 - bitstream：`../build/proj_build.runs/impl_1/top.bit`（约 2.1 MB）。
 - 报告：`../build/utilization.rpt`、`../build/timing_summary.rpt`。
 

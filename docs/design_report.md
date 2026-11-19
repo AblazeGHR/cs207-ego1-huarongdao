@@ -116,7 +116,8 @@ S4 弹出栈顶并恢复，同时重新计算 `won`。无效移动也会入栈�
   所有多 bit 输出均遵循“最左侧为最高位”。
 - **串口**：9600 8N1，每次棋盘变化发送 3 行 ASCII，并每秒重发一次；未初始化格显示 `-`。
   同一份报文送到 CP2102（T4）和蓝牙模块（N2）；电脑串口终端已实测，手机可用 OTG 串口 App。
-- **PC GUI**：`gui/board_gui.py` 用 tkinter + pyserial 读取 COM 口，解析 3x3 ASCII 并实时绘制棋盘；
+- **PC GUI**：`gui/board_gui.py` 用 tkinter + pyserial 读取 COM 口，解析 3x3 棋盘和状态行，
+  实时显示棋盘、有效/无效步数、模式、通关、演示步、16 个 LED、提示和最近操作；
   只做输出显示，操作仍由板上按键/拨码完成。`K6` 常亮表示高级外设使用中。
 
 ### 4.8 复位与消抖
@@ -155,8 +156,8 @@ PC GUI 已在 COM4 @ 9600 上实测：4 秒收到 3 帧，棋盘解析正确。
 Vivado 2018.3，xc7a35tcsg324-1：
 
 - 综合、实现、write_bitstream 成功，0 Errors，0 Critical Warnings。
-- WNS = 1.194 ns，TNS = 0，时序收敛。
-- 资源：690 Slice LUT（3.32%），477 Slice Register（1.15%）。
+- WNS = 0.369 ns，TNS = 0，时序收敛。
+- 资源：762 Slice LUT（3.66%），513 Slice Register（1.23%）。
 - 唯一警告：`led[3]` 恒为 1（高级外设常开），符合设计意图。
 
 ## 7. 已知限制与改进方向
