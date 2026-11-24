@@ -22,3 +22,7 @@ sim/*.vcd
 .DS_Store
 Thumbs.db
 *.swp
+
+# Python cache
+__pycache__/
+*.pyc
